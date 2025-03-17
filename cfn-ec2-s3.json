@@ -1,0 +1,137 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Parameters": {
+    "ProjectName": {
+      "Type": "String",
+      "Default": "aws-lisa",
+      "Description": "Name of this project"
+    }
+  },
+  "Description": "Deploy LISA-Base Machine",
+  "Resources": {
+    "SecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "LISA-Base-SG",
+        "GroupDescription": "LISA-Base-SG-No inbound traffic"
+      }
+    },
+    "Ec2InstanceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "LISA-EC2-Instance-Role",
+        "Description": "EC2 Instance Profile for SSM and Admin Permissions",
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+          "arn:aws:iam::aws:policy/AdministratorAccess"
+        ]
+      }
+    },
+    "EC2InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "Ec2InstanceRole"
+          }
+        ]
+      }
+    },
+    "LISAEC2": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": "ami-0b6d6dacf350ebc82",
+        "InstanceType": "t3.xlarge",
+        "IamInstanceProfile": {
+          "Ref": "EC2InstanceProfile"
+        },
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+              "VolumeSize": 50,
+              "VolumeType": "gp3"
+            }
+          }
+        ]
+      },
+      "DependsOn": "Ec2InstanceRole"
+    },
+    "s3Bucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": {
+          "Fn::Join": [
+            "-",
+            [
+              {
+                "Ref": "ProjectName"
+              },
+              {
+                "Ref": "AWS::AccountId"
+              },
+              {
+                "Ref": "AWS::Region"
+              },
+              {
+                "Fn::Select": [
+                  0,
+                  {
+                    "Fn::Split": [
+                      "-",
+                      {
+                        "Fn::Select": [
+                          2,
+                          {
+                            "Fn::Split": [
+                              "/",
+                              {
+                                "Ref": "AWS::StackId"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          ]
+        }
+      }
+    }
+  },
+  "Outputs": {
+    "InstanceId": {
+      "Value": {
+        "Ref": "LISAEC2"
+      },
+      "Description": "LISA EC2 Build Machine"
+    },
+    "s3BucketName": {
+      "Value": {
+        "Ref": "s3Bucket"
+      },
+      "Description": "LISA Model Bucket"
+    }
+  }
+}
