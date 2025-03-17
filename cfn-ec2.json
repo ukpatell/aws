@@ -1,0 +1,75 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "Deploy LISA-Base Machine",
+  "Resources": {
+    "SecurityGroup": {
+      "Type": "AWS::EC2::SecurityGroup",
+      "Properties": {
+        "GroupName": "LISA-Base-SG",
+        "GroupDescription": "LISA-Base-SG-No inbound traffic"
+      }
+    },
+
+    "Ec2InstanceRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": "LISA-EC2-Instance-Role",
+        "Description": "EC2 Instance Profile for SSM and Admin Permissions",
+        "Path": "/",
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Principal": {
+                "Service": [
+                  "ec2.amazonaws.com"
+                ]
+              },
+              "Action": [
+                "sts:AssumeRole"
+              ]
+            }
+          ]
+        },
+        "ManagedPolicyArns": [
+          "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+          "arn:aws:iam::aws:policy/AdministratorAccess"
+        ]
+      }
+    },
+
+    "EC2InstanceProfile": {
+      "Type": "AWS::IAM::InstanceProfile",
+      "Properties": {
+        "Path": "/",
+        "Roles": [
+          {
+            "Ref": "Ec2InstanceRole"
+          }
+        ]
+      }
+    },
+
+    "LISAEC2": {
+      "Type": "AWS::EC2::Instance",
+      "Properties": {
+        "ImageId": "ami-0b6d6dacf350ebc82",
+        "InstanceType": "t3.xlarge",
+        "IamInstanceProfile": {
+          "Ref": "EC2InstanceProfile"
+        },
+        "BlockDeviceMappings": [
+          {
+            "DeviceName": "/dev/xvda",
+            "Ebs": {
+              "VolumeSize": 50,
+              "VolumeType": "gp3"
+            }
+          }
+        ]
+      },
+      "DependsOn": "Ec2InstanceRole"
+    }
+  }
+}
